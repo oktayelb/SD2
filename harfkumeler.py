@@ -1,29 +1,52 @@
 import itertools
-import sys
-
-# --- IMPORT: word_methods.py ---
-try:
-    from word_methods import exists ,BACK_VOWELS, FRONT_VOWELS
-except ImportError:
-    def exists(w): return True
-
+from util.word_methods import exists ,BACK_VOWELS, FRONT_VOWELS 
+from util.decomposer import decompose
+from benzerlik import benzerlik
 # =============================================================================
 #  BÖLÜM 1: INPUT MAPPING (Sözcük -> Harfküme Kodu)
 # =============================================================================
 
 CHAR_TO_BASE_CODE = {
-    "a": "a", "e": "a",
-    "o": "o", "ö": "o",
-    "u": "u", "ü": "u",
-    "ı": "ı", "i": "ı",
-    "b": "b", "p": "b", "v": "b", "f": "b", 
-    "c": "c", "ç": "c", "j": "c",
-    "d": "d", "t": "d",
-    "g": "g", "k": "g", "ğ": "g","h": "g",
+    "a": "a",
+    "e": "a",
+
+    "o": "o", 
+    "ö": "o",
+    
+    "u": "u",
+    "ü": "u",
+    
+    "ı": "ı", 
+    "i": "ı",
+    
+    "b": "b", 
+    "p": "b", 
+    "v": "b", 
+    "f": "b", 
+    
+    "c": "c", 
+    "ç": "c", 
+    "j": "c",
+    
+    "d": "d", 
+    "t": "d",
+    
+    "g": "g", 
+    "k": "g", 
+    "ğ": "g",
+    "h": "g",
+    
     "l": "l",
-    "m": "m", "n": "m",
-    "r": "r", "z": "r",
-    "s": "s", "ş": "s",
+    
+    "m": "m", 
+    "n": "m",
+    
+    "r": "r", 
+    
+    "s": "s", 
+    "ş": "s",
+    "z": "s",
+    
     "y": "y"
 }
 
@@ -36,13 +59,14 @@ TUM_UNLULER = ["a", "e", "o", "ö", "u", "ü", "ı", "i"]
 
 # Tüm ünsüzler listesi (İstediğin gibi toplu tanımlı)
 TUM_ARAUNSUZLER = [
-    "ç", "d", "ğ", "h", "k", 
+    "b", "c","ç", "d","g", "ğ", "h", "f","k", 
     "l", "m", "n", "p", "r", "s", "ş", "t", "v", "y", "z"
 ]
 TUM_BASUNSUZLER = [
     "b", "c", "ç", "d", "f", "g","h",  "k", 
-    "p",  "s", "ş", "t", "v", "y", "z"
+    "p",  "s", "ş", "t", "v", "y"
 ]
+
 CODE_TO_REAL_CHARS = {
     # --- ÜNLÜLER ---
     "A": ["a", "e"],        "a": ["a", "e"],
@@ -68,8 +92,8 @@ CODE_TO_REAL_CHARS = {
     "g": ["g", "k", "ğ","h"],
     "l": ["l"],
     "m": ["m", "n"],
-    "r": ["r", "z"],
-    "s": ["s", "ş"],
+    "r": ["r"],
+    "s": ["s", "ş","z"],
     "y": ["y"],
 
     # --- JOKERLER ---
@@ -85,59 +109,6 @@ VOWEL_CODES = {"a", "o", "u", "ı", "A", "O", "U", "I", "@"}
 # =============================================================================
 #  BÖLÜM 3: MİMARİNİN KALBİ (FİLTRE) ve FONKSİYONLAR
 # =============================================================================
-
-def sacmasoz_savar(harfkume_str: str) -> bool:
-    """
-    Harfküme kodunu inceler. Mantıksız dizilimleri eler.
-    True -> Geçerli, False -> Saçma (At gitsin)
-    """
-    # Boş ise zaten saçmadır
-    if not harfkume_str:
-        return False
-
-    n = len(harfkume_str)
-    
-    # Yardımcılar
-    # VOWEL_CODES global setini kullanıyoruz: {"a", "o", "u", "ı", "A", "O", "U", "I", "@"}
-    def is_consonant(c):
-        return c not in VOWEL_CODES
-
-    def is_vowel(c):
-        return c in VOWEL_CODES
-
-
-    # 1. KURAL: İlk iki karakter ünsüz ise saçma (Örn: 'TR..')
-    if n >= 2 and is_consonant(harfkume_str[0]) and is_consonant(harfkume_str[1]):
-        return False
-
-    # 2. KURAL: Son üç karakter ünsüz ise saçma (Örn: '..TRK')
-    if n >= 3 and is_consonant(harfkume_str[-1]) and is_consonant(harfkume_str[-2]):
-        return False
-
-    # 3. KURAL: Başta iki ardışık ünlü varsa saçma (Örn: 'AA..')
-    if n >= 2 and is_vowel(harfkume_str[0]) and is_vowel(harfkume_str[1]):
-        return False
-
-    # 4. KURAL: Sonda iki ardışık ünlü varsa saçma (Örn: '..II')
-    if n >= 2 and is_vowel(harfkume_str[-1]) and is_vowel(harfkume_str[-2]):
-        return False
-
-    # 5. KURAL: İçinde üçten fazla (yani 4 ve üzeri) ardışık ünsüz varsa saçma
-    consecutive_consonants = 0
-    for char in harfkume_str:
-        if is_consonant(char):
-            consecutive_consonants += 1
-            if consecutive_consonants > 3: # 4. ünsüz geldiği an elenir
-                return False
-        else:
-            consecutive_consonants = 0 # Ünlü gelince sayacı sıfırla
-
-    if harfkume_str[0] in ["L","M","R"]:
-        return False
-    # Tüm testlerden geçtiyse mantıklıdır
-    return True
-
-
 def harfkumele(word):
     """Sözcük -> Harfküme Kodu (İlk harf BÜYÜK)"""
     result = []
@@ -206,6 +177,56 @@ def başkabiçimler(base_code):
             
     return list(final_varyasyonlar)
 
+def sacma(harfkume_str: str) -> bool:
+    """
+    Harfküme kodunu inceler. Mantıksız dizilimleri eler.
+    True -> Geçerli, False -> Saçma (At gitsin)
+    """
+    # Boş ise zaten saçmadır
+    if not harfkume_str:
+        return True
+
+    n = len(harfkume_str)
+    
+    # Yardımcılar
+    # VOWEL_CODES global setini kullanıyoruz: {"a", "o", "u", "ı", "A", "O", "U", "I", "@"}
+    def is_consonant(c):
+        return c not in VOWEL_CODES
+
+    def is_vowel(c):
+        return c in VOWEL_CODES
+
+
+    # 1. KURAL: İlk iki karakter ünsüz ise saçma (Örn: 'TR..')
+    if n >= 2 and is_consonant(harfkume_str[0]) and is_consonant(harfkume_str[1]):
+        return True
+
+    # 2. KURAL: Son üç karakter ünsüz ise saçma (Örn: '..TRK')
+    if n >= 3 and is_consonant(harfkume_str[-1]) and is_consonant(harfkume_str[-2]):
+        return True
+
+    # 3. KURAL: Başta iki ardışık ünlü varsa saçma (Örn: 'AA..')
+    if n >= 2 and is_vowel(harfkume_str[0]) and is_vowel(harfkume_str[1]):
+        return True
+
+    # 4. KURAL: Sonda iki ardışık ünlü varsa saçma (Örn: '..II')
+    if n >= 2 and is_vowel(harfkume_str[-1]) and is_vowel(harfkume_str[-2]):
+        return True
+
+    # 5. KURAL: İçinde üçten fazla (yani 4 ve üzeri) ardışık ünsüz varsa saçma
+    consecutive_consonants = 0
+    for char in harfkume_str:
+        if is_consonant(char):
+            consecutive_consonants += 1
+            if consecutive_consonants > 3: # 4. ünsüz geldiği an elenir
+                return True
+        else:
+            consecutive_consonants = 0 # Ünlü gelince sayacı sıfırla
+
+    if harfkume_str[0] in ["L","M","R"]:
+        return True
+    # Tüm testlerden geçtiyse mantıklıdır
+    return False
 
 ##ünlü uyumu kısmını hallet
 def anlambirimli(kelime):
@@ -280,13 +301,13 @@ def sesdenkler(word):
     # 2. Tüm Varyasyonları Üret (@, X, x dahil)
     tum_varyasyonlar = başkabiçimler(raw_kume)
     
-    gecerli_sonuclar = []
+    gecerli_sonuclar = set()
     
     # 3. DÖNGÜ: Filtrele ve İşle
     for kod in tum_varyasyonlar:
         
         # --- ERKEN ELEME (SAÇMASÖZ SAVAR) ---
-        if not sacmasoz_savar(kod):
+        if sacma(kod):
             continue # Bu kod saçma, hiç işlem yapma, sonrakine geç.
             
         # Kod mantıklıysa kelimeleri oluştur
@@ -295,17 +316,54 @@ def sesdenkler(word):
         for aday_kelime in olasi_kelimeler:
             # 4. Son Kontrol (Sözlükte var mı?)
             if anlambirimli(aday_kelime):
-                gecerli_sonuclar.append(aday_kelime)
+                gecerli_sonuclar.add(aday_kelime)
                 
-    return list(set(gecerli_sonuclar)) 
+    return list(gecerli_sonuclar) 
+
+
+def yasal_olanlar(liste):
+    """Verilen kelime listesinden yasal olanları döner."""
+    return [kelime for kelime in liste if  5 > len(decompose(kelime)) > 0]
+
+
 
 
 if __name__ == "__main__":
-    # Test
-    ornek = "jandarma"
-    print(f"Kelime: {ornek}")
-    
-    sonuclar = sesdenkler(ornek)
-    
-    print(f"Toplam Aday: {len(sonuclar)}")
-    print(sonuclar[:50])
+    while True:
+        try:
+            ornek = input("Kelime girin: ").strip().lower()
+            if not ornek: continue # Boş giriş yapılırsa atla
+            
+            print(f"\nİncelenen Kelime: {ornek}")
+            print("-" * 30)
+            
+            # 1. Adayları Bul
+            sonuclar = sesdenkler(ornek)
+            
+            # 2. Yasal Olanları Filtrele
+            x = yasal_olanlar(sonuclar)
+            
+            # --- SIRALAMA İŞLEMİ (Burayı ekledik) ---
+            # Her iki listeyi de 'benzerlik' fonksiyonundan dönen skora göre (reverse=True -> Büyükten küçüğe) sıralıyoruz.
+            sonuclar.sort(key=lambda aday: benzerlik(ornek, aday), reverse=True)
+            x.sort(key=lambda aday: benzerlik(ornek, aday), reverse=True)
+            print("sayan" in x)
+            # --- SONUÇLARI YAZDIRMA ---
+            print(f"Toplam Aday Sayısı: {len(sonuclar)}")
+            print("Tüm Adaylar (Skora göre ilk 50):")
+            # İstersen puanları da görmek için list comprehension kullanabilirsin, şimdilik sadece kelimeleri yazdırıyoruz
+            print(sonuclar[:50])
+            
+            print("\n" + "-" * 30)
+            
+            print(f"Yasal Olanlar Sayısı: {len(x)}")
+            print("Yasal Olanlar (Skora göre sıralı):")
+            print([(k, round(benzerlik(ornek, k), 2)) for k in x])
+            
+            print("\n" + "=" * 30 + "\n")
+            
+        except KeyboardInterrupt:
+            print("\nÇıkış yapılıyor...")
+            break
+        except Exception as e:
+            print(f"Bir hata oluştu: {e}")
