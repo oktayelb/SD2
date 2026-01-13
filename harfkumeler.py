@@ -323,7 +323,7 @@ def sesdenkler(word):
 
 def yasal_olanlar(liste):
     """Verilen kelime listesinden yasal olanları döner."""
-    return [kelime for kelime in liste if  5 > len(decompose(kelime)) > 0]
+    return [kelime for kelime in liste if  len(decompose(kelime)) > 0]
 
 
 
@@ -336,7 +336,6 @@ if __name__ == "__main__":
             
             print(f"\nİncelenen Kelime: {ornek}")
             print("-" * 30)
-            
             # 1. Adayları Bul
             sonuclar = sesdenkler(ornek)
             
@@ -347,7 +346,7 @@ if __name__ == "__main__":
             # Her iki listeyi de 'benzerlik' fonksiyonundan dönen skora göre (reverse=True -> Büyükten küçüğe) sıralıyoruz.
             sonuclar.sort(key=lambda aday: benzerlik(ornek, aday), reverse=True)
             x.sort(key=lambda aday: benzerlik(ornek, aday), reverse=True)
-            print("sayan" in x)
+            print("deniz" in sonuclar)
             # --- SONUÇLARI YAZDIRMA ---
             print(f"Toplam Aday Sayısı: {len(sonuclar)}")
             print("Tüm Adaylar (Skora göre ilk 50):")
