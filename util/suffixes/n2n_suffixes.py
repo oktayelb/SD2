@@ -386,8 +386,8 @@ ablative_de = Suffix("ablative_de", "de", Type.NOUN, Type.NOUN, form_function=fo
 confactuous_le = Suffix("confactuous_le", "le", Type.NOUN, Type.NOUN, form_function= form_for_confactuous_le, major_harmony=HasMajorHarmony.Yes, minor_harmony=HasMinorHarmony.No, group=SuffixGroup.CASE)
 
 
-# --- Group 45: POST_CASE (İstisna) ---
-marking_ki = Suffix("marking_ki", "ki", Type.NOUN, Type.NOUN, form_function= form_for_marking_ki, major_harmony=HasMajorHarmony.No, minor_harmony=HasMinorHarmony.No, group=SuffixGroup.POST_CASE) # is_unique çünkü sadece bir kere gelebilir.
+# --- Group 45: POST_CASE (İstisna) ---                                                             ## ŞÜPHELİ ##   
+marking_ki = Suffix("marking_ki", "ki", Type.NOUN, Type.NOUN, form_function= form_for_marking_ki, major_harmony=HasMajorHarmony.Yes, minor_harmony=HasMinorHarmony.No, group=SuffixGroup.POST_CASE) # is_unique çünkü sadece bir kere gelebilir.
 when_ken = Suffix("when_ken", "ken", Type.NOUN, Type.NOUN, form_function= form_for_when_ken , major_harmony=HasMajorHarmony.No, minor_harmony=HasMinorHarmony.No, group=SuffixGroup.POST_CASE) #zarf sanrırım
 
 
