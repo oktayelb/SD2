@@ -85,33 +85,44 @@ def harfkumele(word):
             else: result.append(base_code.lower())
     return "".join(result)
 
+def generate_insertions(base_code):
+    """Insert X and @ at every position (0..n). Position 0 uses uppercase."""
+    results = set()
+    n = len(base_code)
+    for i in range(n + 1):
+        for wildcard in ("X", "@"):
+            if i == 0:
+                new = wildcard + base_code[0].lower() + base_code[1:]
+            else:
+                new = base_code[:i] + wildcard.lower() + base_code[i:]
+            results.add(new)
+    return results
+
+def generate_substitutions(base_code):
+    """Replace each char with X (or @ if the char is a vowel). Position 0 uses uppercase."""
+    results = set()
+    n = len(base_code)
+    for i in range(n):
+        replacement = "@" if base_code[i] in VOWEL_CODES else "X"
+        if i == 0:
+            new = replacement + base_code[1:]
+        else:
+            new = base_code[:i] + replacement.lower() + base_code[i+1:]
+        results.add(new)
+    return results
+
+def generate_combinations(base_code):
+    """Apply each substitution, then each insertion on the substituted result."""
+    results = set()
+    for sub in generate_substitutions(base_code):
+        results.update(generate_insertions(sub))
+    return results
+
 def başkabiçimler(base_code):
     final_varyasyonlar = {base_code}
-    def is_consonant(c): return c not in VOWEL_CODES
-
-    # YOL 1: Fonotaktik (@ Ekleme)
-    if len(base_code) >= 2:
-        if is_consonant(base_code[0]) and is_consonant(base_code[1]):
-            final_varyasyonlar.add(base_code[0] + "@" + base_code[1:]) 
-            final_varyasyonlar.add("@" + base_code)                   
-
-        if is_consonant(base_code[-2]) and is_consonant(base_code[-1]):
-            final_varyasyonlar.add(base_code[:-1] + "@" + base_code[-1])
-
-    # YOL 2: X ve x (Ünsüz Denemeleri)
-    n = len(base_code)
-    # A. INSERTION
-    for i in range(n + 1):
-        if i == 0: new = "X" + base_code[0].lower() + base_code[1:]
-        else: new = base_code[:i] + "x" + base_code[i:]
-        final_varyasyonlar.add(new)
-            
-    # B. SUBSTITUTION
-    for i in range(n):
-        if i == 0: new = "X" + base_code[1:]
-        else: new = base_code[:i] + "x" + base_code[i+1:]
-        final_varyasyonlar.add(new)
-            
+    final_varyasyonlar.update(generate_insertions(base_code))
+    final_varyasyonlar.update(generate_substitutions(base_code))
+    final_varyasyonlar.update(generate_combinations(base_code))
     return list(final_varyasyonlar)
 
 def sacma(harfkume_str: str) -> bool:

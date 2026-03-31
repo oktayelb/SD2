@@ -135,9 +135,16 @@ def sessiz_benzerlik(ana_kelime, yeni_kelime):
 
 def benzerlik(ana_kelime, yeni_kelime):
 
-    uzunluk_oranı = (len(ana_kelime) / len(yeni_kelime)) if (len(yeni_kelime) > 0) else 0
+    len1 = len(ana_kelime)
+    len2 = len(yeni_kelime)
+    if len1 == 0 or len2 == 0:
+        return 0.0
+    if len1 <= len2:
+        uzunluk_oranı = len1 / len2
+    else:
+        uzunluk_oranı = len2 / len1
 
-    return uzunluk_oranı*(sesli_benzerlik(ana_kelime, yeni_kelime)*6/10 + sessiz_benzerlik(ana_kelime, yeni_kelime)*4/10)
+    return uzunluk_oranı * (sesli_benzerlik(ana_kelime, yeni_kelime) * 6/10 + sessiz_benzerlik(ana_kelime, yeni_kelime) * 4/10)
 
 
 if __name__ == "__main__":
