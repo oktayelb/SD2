@@ -1,4 +1,5 @@
 import itertools
+from functools import lru_cache
 from util.word_methods import exists, BACK_VOWELS, FRONT_VOWELS
 from util.decomposer import decompose
 
@@ -26,44 +27,46 @@ CHAR_TO_BASE_CODE = {
 #  BÖLÜM 2: OUTPUT TABLE (Harfküme Kodu -> Olası Gerçek Harfler)
 # =============================================================================
 
-TUM_UNLULER = ["a", "e", "o", "ö", "u", "ü", "ı", "i"]
+# Changed to sets for O(1) lookups
+TUM_UNLULER = {"a", "e", "o", "ö", "u", "ü", "ı", "i"}
 
-TUM_ARAUNSUZLER = [
+TUM_ARAUNSUZLER = (
     "b", "c", "ç", "d", "g", "ğ", "h", "f", "k",
     "l", "m", "n", "p", "r", "s", "ş", "t", "v", "y", "z"
-]
-TUM_BASUNSUZLER = [
+)
+TUM_BASUNSUZLER = (
     "b", "c", "ç", "d", "f", "g", "h", "k",
     "p", "s", "ş", "t", "v", "y"
-]
+)
 
+# Lists inside the dict are converted to tuples to be immutable and slightly faster to iterate
 CODE_TO_REAL_CHARS = {
-    "A": ["a", "e"],        "a": ["a", "e"],
-    "O": ["o", "ö"],        "o": ["o", "ö"],
-    "U": ["u", "ü"],        "u": ["u", "ü"],
-    "I": ["ı", "i"],        "ı": ["ı", "i"],
+    "A": ("a", "e"),        "a": ("a", "e"),
+    "O": ("o", "ö"),        "o": ("o", "ö"),
+    "U": ("u", "ü"),        "u": ("u", "ü"),
+    "I": ("ı", "i"),        "ı": ("ı", "i"),
     
-    "B": ["b", "p", "v", "f"],
-    "C": ["c", "ç"],
-    "D": ["d", "t"],
-    "G": ["g", "k", "h"],
-    "L": ["l"],
-    "M": ["m", "n"],
-    "R": ["r"],
-    "S": ["s", "ş"],
-    "Y": ["y"],
+    "B": ("b", "p", "v", "f"),
+    "C": ("c", "ç"),
+    "D": ("d", "t"),
+    "G": ("g", "k", "h"),
+    "L": ("l",),
+    "M": ("m", "n"),
+    "R": ("r",),
+    "S": ("s", "ş"),
+    "Y": ("y",),
 
-    "b": ["b", "p", "v"],
-    "c": ["c", "ç"],
-    "d": ["d", "t"],
-    "g": ["g", "k", "ğ", "h"],
-    "l": ["l"],
-    "m": ["m", "n"],
-    "r": ["r"],
-    "s": ["s", "ş", "z"],
-    "y": ["y"],
+    "b": ("b", "p", "v"),
+    "c": ("c", "ç"),
+    "d": ("d", "t"),
+    "g": ("g", "k", "ğ", "h"),
+    "l": ("l",),
+    "m": ("m", "n"),
+    "r": ("r",),
+    "s": ("s", "ş", "z"),
+    "y": ("y",),
 
-    "@": TUM_UNLULER,
+    "@": tuple(TUM_UNLULER),
     "X": TUM_BASUNSUZLER,
     "x": TUM_ARAUNSUZLER
 }
@@ -125,6 +128,7 @@ def başkabiçimler(base_code):
     final_varyasyonlar.update(generate_combinations(base_code))
     return list(final_varyasyonlar)
 
+@lru_cache(maxsize=100000)
 def sacma(harfkume_str: str) -> bool:
     if not harfkume_str: return True
     n = len(harfkume_str)
@@ -147,6 +151,7 @@ def sacma(harfkume_str: str) -> bool:
     if harfkume_str[0] in ["L","M","R"]: return True
     return False
 
+@lru_cache(maxsize=500000)
 def anlambirimli(kelime):
     """
     Returns (True, "StyledWord") or (False, "original").
@@ -202,11 +207,11 @@ def sesdenkler(word):
     print(f"1. Main Harfkume Version: {raw_kume}")
     
     tum_varyasyonlar = başkabiçimler(raw_kume)
-    print(f"2. Baskabicimler Versions: {tum_varyasyonlar}")
+    print(f"2. Baskabicimler Versions: {len(tum_varyasyonlar)} variations generated")
     print("-" * 40)
     
-    # Store tuples: (raw_word, styled_word)
     gecerli_sonuclar = set()
+    incelenen_adaylar = set() # O(1) lookup to prevent re-evaluating overlapping variations
     
     for kod in tum_varyasyonlar:
         if sacma(kod):
@@ -215,12 +220,25 @@ def sesdenkler(word):
         olasi_kelimeler = harfkumeden_kelimeler(kod)
         
         for aday_kelime in olasi_kelimeler:
+            # Prevents combinatorial explosion from evaluating the same word twice
+            if aday_kelime in incelenen_adaylar:
+                continue
+            incelenen_adaylar.add(aday_kelime)
+            
             is_valid, styled_word = anlambirimli(aday_kelime)
             
             if is_valid:
                 gecerli_sonuclar.add((aday_kelime, styled_word))
                 
     return list(gecerli_sonuclar) 
+
+@lru_cache(maxsize=100000)
+def cached_decompose(raw, styled):
+    """Helper function to cache decomposition operations per word."""
+    analyses = decompose(raw)
+    if analyses:
+        return (raw, styled, analyses)
+    return None
 
 def yasal_olanlar(liste):
     """
@@ -229,8 +247,7 @@ def yasal_olanlar(liste):
     """
     valid_results = []
     for raw, styled in liste:
-        analyses = decompose(raw)
-        if analyses:
-            # analyses is a list of tuples: (root, type, chain, pos)
-            valid_results.append((raw, styled, analyses))
+        res = cached_decompose(raw, styled)
+        if res:
+            valid_results.append(res)
     return valid_results
